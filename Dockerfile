@@ -121,23 +121,19 @@ RUN mkdir -p /home/renderer/src \
  && ldconfig \
  && cd ..
 
-# Configure stylesheet
-RUN mkdir -p /home/renderer/src \
- && cd /home/renderer/src \
- && git clone https://github.com/gravitystorm/openstreetmap-carto.git \
- && git -C openstreetmap-carto checkout v4.23.0 \
- && cd openstreetmap-carto \
- && rm -rf .git \
- && npm install -g carto@0.18.2 \
- && carto project.mml > mapnik.xml \
- && scripts/get-shapefiles.py \
- && rm /home/renderer/src/openstreetmap-carto/data/*.zip
-
 # Configure renderd
 RUN sed -i 's/renderaccount/renderer/g' /usr/local/etc/renderd.conf \
  && sed -i 's/\/truetype//g' /usr/local/etc/renderd.conf \
  && sed -i 's/hot/tile/g' /usr/local/etc/renderd.conf \
- && sed -i 's/TILESIZE=256/TILESIZE=512/g' /usr/local/etc/renderd.conf
+ && echo ""                                 >> /usr/local/etc/renderd.conf \
+ && echo "[print]"                          >> /usr/local/etc/renderd.conf \
+ && echo "URI=/print/"                      >> /usr/local/etc/renderd.conf \
+ && echo "TILEDIR=/var/lib/mod_tile"        >> /usr/local/etc/renderd.conf \
+ && echo "XML=/home/renderer/src/openstreetmap-carto-printable/mapnik.xml" >> /usr/local/etc/renderd.conf \
+ && echo "HOST=localhost"                   >> /usr/local/etc/renderd.conf \
+ && echo "TILESIZE=512"                     >> /usr/local/etc/renderd.conf \
+ && echo "MAXZOOM=20"                       >> /usr/local/etc/renderd.conf \
+ && echo "SCALE=2"                          >> /usr/local/etc/renderd.conf
 
 # Configure Apache
 RUN mkdir /var/lib/mod_tile \
@@ -175,6 +171,25 @@ RUN mkdir -p /home/renderer/src \
  && git checkout 612fe3e040d8bb70d2ab3b133f3b2cfc6c940520 \
  && rm -rf .git \
  && chmod u+x /home/renderer/src/regional/trim_osc.py
+
+# Configure stylesheet
+RUN npm install -g carto@0.18.2
+RUN mkdir -p /home/renderer/src \
+ && cd /home/renderer/src \
+ && git clone https://github.com/gravitystorm/openstreetmap-carto.git \
+ && git -C openstreetmap-carto checkout v4.23.0 \
+ && cd openstreetmap-carto \
+ && rm -rf .git \
+ && carto project.mml > mapnik.xml \
+ && scripts/get-shapefiles.py \
+ && rm data/*.zip
+RUN cd /home/renderer/src \
+ && git clone https://github.com/mrash14/openstreetmap-carto-printable.git \
+ && cd openstreetmap-carto-printable \
+ && git checkout printable \
+ && rm -rf .git \
+ && carto project.mml > mapnik.xml \
+ && ln -s /home/renderer/src/openstreetmap-carto/data /home/renderer/src/openstreetmap-carto-printable/
 
 # Start running
 COPY run.sh /
